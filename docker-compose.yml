@@ -1,0 +1,43 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: mifi_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: mifi_ml_api
+    expose:
+      - "5001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: mifi_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - shared_logs:/var/log/shared
+    depends_on:
+      - api
+
+  log_service:
+    build: ./log_service
+    container_name: mifi_logger
+    volumes:
+      - shared_logs:/var/log/shared
+    depends_on:
+      - nginx
+
+volumes:
+  shared_logs:
